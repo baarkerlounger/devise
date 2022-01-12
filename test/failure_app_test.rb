@@ -238,7 +238,18 @@ class FailureTest < ActiveSupport::TestCase
     test 'redirects the correct format if it is a non-html format request' do
       swap Devise, navigational_formats: [:js] do
         call_failure('formats' => Mime[:js])
+        assert_equal 302, @response.first
         assert_equal 'http://test.host/users/sign_in.js', @response.second["Location"]
+      end
+    end
+
+    test 'redirects turbo_stream correctly' do
+      Mime::Type.register "text/vnd.turbo-stream.html", :turbo_stream
+
+      swap Devise, navigational_formats: [:html, :turbo_stream] do
+        call_failure('formats' => Mime[:turbo_stream])
+        assert_equal 302, @response.first
+        assert_equal 'http://test.host/users/sign_in', @response.second["Location"]
       end
     end
   end
@@ -335,6 +346,7 @@ class FailureTest < ActiveSupport::TestCase
         "warden" => stub_everything
       }
       call_failure(env)
+      assert_equal 422, @response.first
       assert_includes @response.third.body, '<h2>Log in</h2>'
       assert_includes @response.third.body, 'Invalid email or password.'
     end
@@ -346,6 +358,7 @@ class FailureTest < ActiveSupport::TestCase
         "warden" => stub_everything
       }
       call_failure(env)
+      assert_equal 422, @response.first
       assert_includes @response.third.body, '<h2>Log in</h2>'
       assert_includes @response.third.body, 'You have to confirm your email address before continuing.'
     end
@@ -357,6 +370,7 @@ class FailureTest < ActiveSupport::TestCase
         "warden" => stub_everything
       }
       call_failure(env)
+      assert_equal 422, @response.first
       assert_includes @response.third.body, '<h2>Log in</h2>'
       assert_includes @response.third.body, 'Your account is not activated yet.'
     end
@@ -370,6 +384,7 @@ class FailureTest < ActiveSupport::TestCase
             "warden" => stub_everything
           }
           call_failure(env)
+          assert_equal 422, @response.first
           assert_includes @response.third.body, '<h2>Log in</h2>'
           assert_includes @response.third.body, 'Invalid email or password.'
           assert_equal '/sample', @request.env["SCRIPT_NAME"]
@@ -384,6 +399,7 @@ class FailureTest < ActiveSupport::TestCase
       assert_equal "yes it does", Devise::FailureApp.new.lazy_loading_works?
     end
   end
+  
   context "Without Flash Support" do
     test "returns to the default redirect location without a flash message" do
       call_failure request_klass: RequestWithoutFlashSupport
